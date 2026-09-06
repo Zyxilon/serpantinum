@@ -6,7 +6,6 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
-import Quickshell.Services.Pipewire
 import "../reusables"
 import "../"
 
@@ -230,13 +229,15 @@ PanelWindow {
             root.hasSelection = root.imgHasSelection;
         }
 
-        root.preStartX = root.imgStartX;
-        root.preStartY = root.imgStartY;
-        root.preEndX = root.imgEndX;
-        root.preEndY = root.imgEndY;
+         root.preStartX = root.imgStartX;
+         root.preStartY = root.imgStartY;
+         root.preEndX = root.imgEndX;
+         root.preEndY = root.imgEndY;
+         root.isMaximized = false;
+         root.wasMaximizedBeforeVideo = false;
 
-        root.isActive = true;
-        root.isLoading = false;
+         root.isActive = true;
+         root.isLoading = false;
 
         Qt.callLater(() => {
             root.animateChanges = true;
@@ -264,11 +265,12 @@ PanelWindow {
         if (!root.isInitialized || root.isLoading) return;
         Quickshell.execDetached(["bash", "-c", "echo '" + (root.isVideoMode ? "true" : "false") + "' > " + Caching.getCacheDir("screenshot") + "/video_mode"]);
 
-        root.isMaximized = false;
-        let screenW = root.screen ? root.screen.width : root.width;
-        let screenH = root.screen ? root.screen.height : root.height;
+         let screenW = root.screen ? root.screen.width : root.width;
+         let screenH = root.screen ? root.screen.height : root.height;
 
-        if (root.isVideoMode) {
+         if (root.isVideoMode) {
+            root.wasMaximizedBeforeVideo = root.isMaximized;
+            root.isMaximized = false;
             root.preStartX = root.startX;
             root.preStartY = root.startY;
             root.preEndX = root.endX;
@@ -316,8 +318,9 @@ PanelWindow {
             root.startY = root.preStartY;
             root.endX = root.preEndX;
             root.endY = root.preEndY;
+            root.isMaximized = root.wasMaximizedBeforeVideo;
 
-            if (Math.abs(root.endX - root.startX) < 10 || Math.abs(root.endY - root.startY) < 10) {
+             if (Math.abs(root.endX - root.startX) < 10 || Math.abs(root.endY - root.startY) < 10) {
                 root.hasSelection = false;
             } else {
                 root.hasSelection = true;
@@ -426,6 +429,13 @@ PanelWindow {
     property real preEndX: 0
     property real preEndY: 0
 
+    // Separate from preStartX/Y/EndX/Y (used as the pre-video-mode checkpoint) so maximize + video mode don't clobber each other
+    property real preMaxStartX: 0
+    property real preMaxStartY: 0
+    property real preMaxEndX: 0
+    property real preMaxEndY: 0
+    property bool wasMaximizedBeforeVideo: false
+
     property real selX: Math.min(startX, endX)
     property real selY: Math.min(startY, endY)
     property real selW: Math.abs(endX - startX)
@@ -465,19 +475,19 @@ PanelWindow {
 
     function toggleMaximize() {
         if (root.isVideoMode) return;
-        let screenW = root.screen ? root.screen.width : root.width;
-        let screenH = root.screen ? root.screen.height : root.height;
-        if (!isMaximized) {
-            preStartX = root.startX; preStartY = root.startY;
-            preEndX = root.endX; preEndY = root.endY;
-            root.startX = 0; root.startY = 0;
-            root.endX = screenW; root.endY = screenH;
-            isMaximized = true;
-        } else {
-            root.startX = preStartX; root.startY = preStartY;
-            root.endX = preEndX; root.endY = preEndY;
-            isMaximized = false;
-        }
+         let screenW = root.screen ? root.screen.width : root.width;
+         let screenH = root.screen ? root.screen.height : root.height;
+         if (!isMaximized) {
+             preMaxStartX = root.startX; preMaxStartY = root.startY;
+             preMaxEndX = root.endX; preMaxEndY = root.endY;
+             root.startX = 0; root.startY = 0;
+             root.endX = screenW; root.endY = screenH;
+             isMaximized = true;
+         } else {
+             root.startX = preMaxStartX; root.startY = preMaxStartY;
+             root.endX = preMaxEndX; root.endY = preMaxEndY;
+             isMaximized = false;
+         }
         root.saveCache();
     }
 
